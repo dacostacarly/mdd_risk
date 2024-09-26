@@ -1,0 +1,971 @@
+---
+title: "Metabochip Project - Risk Score Calculation"
+format: html
+editor: visual
+---
+
+# Start African Americans
+
+## Input Raw Data from Box - space separated - AA
+
+```{r}
+metabochip <- read.delim('/Users/carly/Desktop/Metabochip Project/AA/Metabochip_AA_11222022_AD.raw', as.is = T, header = T, sep = " ")
+```
+
+## Data Clean up
+
+Changing NA's to 0
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(naniar)
+```
+
+```{r}
+metabochip_risk_AA <- metabochip %>%
+  mutate_all(funs(ifelse(is.na(.), 0, .)))
+```
+
+## Taking Absolute Value of Effects, Calculating Weighted Risk (using Betas)
+
+Removing SNP rs6656401_A (did not pass Hardy Weinberg - Plink)
+
+```{r}
+metabochip_risk_weighted_AA_rmSNPs <- metabochip_risk_AA %>%
+  mutate(weighted_risk = (rs16894668_A*0.32930375 + rs1800978_G*0.05826891 + rs17125924_G*0.09531018 + rs889555_A*0.0512933 + rs5848_A*0.06765865))
+```
+
+```{r}
+metabochip_risk_AA <- metabochip_risk_weighted_AA_rmSNPs %>%
+  mutate(risk = rowSums(.[8:12], na.rm=TRUE))
+```
+
+## Create Histograms to show Distribution of Risk Scores
+
+```{r}
+hist(metabochip_risk_AA$risk, xlab = "Unweighted Risk Score", main = "Risk Scores - African American", xlim = c(0,8), ylim = c(0,4000), breaks = 8)
+```
+
+```{r}
+hist(metabochip_risk_AA$weighted_risk, xlab = "Weighted Risk Score", main = "Risk Scores - African American", xlim = c(0,1), ylim = c(0,7000), breaks = 8)
+```
+
+## Summary Statistics for Weighted and Unweighted PRS
+
+```{r}
+summary(metabochip_risk_AA)
+```
+
+```{r}
+quantile(metabochip_risk_AA$weighted_risk, c(0.10, 0.90))
+
+mean(metabochip_risk_AA$weighted_risk)
+sd(metabochip_risk_AA$weighted_risk)
+range(metabochip_risk_AA$weighted_risk)
+
+mean(metabochip_risk_AA$risk)
+sd(metabochip_risk_AA$risk)
+range(metabochip_risk_AA$risk)
+```
+
+# Start Asians
+
+## Input Raw Data from Box - space separated - A
+
+```{r}
+metabochip_asian <- read.delim('/Users/carly/Desktop/Metabochip Project/Asian/Metabochip_Asians_04012013_AD.raw', as.is = T, header = T, sep = " ")
+```
+
+## Data Clean up
+
+Changing NA's to 0
+
+```{r}
+metabochip_risk_asian <- metabochip_asian %>%   
+  mutate_all(funs(ifelse(is.na(.), 0, .)))
+```
+
+## Taking Absolute Value of Effects, Calculating Weighted Risk (using Betas)
+
+Removing SNP rs6656401_A (did not pass Hardy Weinberg - Plink)
+
+```{r}
+metabochip_risk_weighted_asian_rmSNPs <- metabochip_risk_asian %>%   
+  mutate(weighted_risk = (rs16894668_A*0.32930375 + rs1800978_G*0.05826891 + rs17125924_G*0.09531018 + rs889555_A*0.0512933 + rs5848_A*0.06765865))
+```
+
+```{r}
+metabochip_risk_asian <- metabochip_risk_weighted_asian_rmSNPs %>%   
+  mutate(risk = rowSums(.[8:12], na.rm=TRUE))
+```
+
+## Create Histograms to show Distribution of Risk Scores
+
+```{r}
+hist(metabochip_risk_asian$risk, xlab = "Unweighted Risk Score", main = "Risk Scores - Asian", xlim = c(0,6), ylim = c(0,500), breaks = 8)
+```
+
+```{r}
+hist(metabochip_risk_asian$weighted_risk, xlab = "Weighted Risk Score", main = "Risk Scores - Asian", xlim = c(0,1), ylim = c(0,500), breaks = 8)
+```
+
+## Summary Statistics for Weighted and Unweighted PRS
+
+```{r}
+summary(metabochip_risk_asian)
+```
+
+```{r}
+quantile(metabochip_risk_asian$weighted_risk, c(0.10, 0.90))  
+mean(metabochip_risk_asian$weighted_risk) 
+sd(metabochip_risk_asian$weighted_risk) 
+range(metabochip_risk_asian$weighted_risk)  
+
+mean(metabochip_risk_asian$risk) 
+sd(metabochip_risk_asian$risk) 
+range(metabochip_risk_asian$risk)
+```
+
+# Start Hispanics
+
+## Input Raw Data from Box - space separated - Hispanic
+
+```{r}
+metabochip_latino <- read.delim('/Users/carly/Desktop/Metabochip Project/Latino/Metabochip_Latinos_11222022_AD.raw', as.is = T, header = T, sep = " ")
+```
+
+## Data Clean up
+
+Changing NA's to 0
+
+```{r}
+metabochip_risk_hisp <- metabochip_latino %>%   
+  mutate_all(funs(ifelse(is.na(.), 0, .)))
+```
+
+## Taking Absolute Value of Effects, Calculating Weighted Risk (using Betas)
+
+No SNPs were removed during QC for Hispanics
+
+```{r}
+metabochip_risk_weighted_hisp <- metabochip_risk_hisp %>%   
+  mutate(weighted_risk = (rs6656401_A*0.1567 + rs16894668_A*0.32930375 + rs1800978_G*0.05826891 + rs17125924_G*0.09531018 + rs889555_A*0.0512933 + rs5848_A*0.06765865))
+```
+
+```{r}
+metabochip_risk_hisp <- metabochip_risk_weighted_hisp %>%   
+  mutate(risk = rowSums(.[7:12], na.rm=TRUE))
+```
+
+## Create Histograms to show Distribution of Risk Scores
+
+```{r}
+hist(metabochip_risk_hisp$risk, xlab = "Unweighted Risk Score", main = "Risk Scores - Hispanic", xlim = c(0,7), ylim = c(0,500), breaks = 8)
+```
+
+```{r}
+hist(metabochip_risk_hisp$weighted_risk, xlab = "Weighted Risk Score", main = "Risk Scores - Hispanic", xlim = c(0,1), ylim = c(0,600), breaks = 8)
+```
+
+## Summary Statistics for Weighted and Unweighted PRS
+
+```{r}
+summary(metabochip_risk_hisp)
+```
+
+```{r}
+quantile(metabochip_risk_hisp$weighted_risk, c(0.10, 0.90))  
+
+mean(metabochip_risk_hisp$weighted_risk) 
+sd(metabochip_risk_hisp$weighted_risk) 
+range(metabochip_risk_hisp$weighted_risk)  
+
+mean(metabochip_risk_hisp$risk) 
+sd(metabochip_risk_hisp$risk) 
+range(metabochip_risk_hisp$risk)
+```
+
+# ICD9 Codes - Create case/control definitions
+
+## Import BioVu Data - patient visits
+
+```{r}
+ICD9 <- readr::read_delim("/Users/carly/Desktop/Metabochip Project/formatted_All_ICD9_Group_Version1_Biovu_02142013_03022023/formatted_All_ICD9_Group_Version1_Biovu_02142013_03022023.txt", 
+                          delim = "\t")
+```
+
+```{r}
+ICD9_IDs <- ICD9[c("RUID")]
+ICD9_IDs_race <- ICD9[c("RUID", "new_race")]
+```
+
+Import ECG data to obtain birthdays (most complete dataset for birthdays)
+
+```{r}
+birthdays <- readr::read_delim("/Users/carly/Desktop/Metabochip Project/ECG_Group_Version2_Biovu_02262013.txt", delim = "\t")
+
+birthdays_ID_dob <- birthdays[c("RUID", "dob")]
+
+sum(is.na(birthdays$dob))
+```
+
+Merge ICD9 table with birthdays
+
+```{r}
+merged_dob_2 <- merge(x = ICD9_IDs, y = birthdays_ID_dob, by = 'RUID', all.x = TRUE)
+
+sum(is.na(merged_dob_2$dob))
+
+```
+
+```{r}
+ICD9_dobs <- merge(x = ICD9, y = merged_dob_2, by = 'RUID', all.x = TRUE)
+```
+
+## Create table in a new format to calculate age easier
+
+```{r}
+ICD9_dobs_dates <- ICD9_dobs %>%
+  select("RUID", "dob", "new_race", "gender", "genotyped", contains("date"))
+
+ICD9_dobs_codes <- ICD9_dobs %>%
+  select("RUID", "dob", "new_race", "gender", "genotyped", contains("codes"))
+
+ICD9_dobs_new_format <- merge(ICD9_dobs_codes, ICD9_dobs_dates, by = "RUID")
+
+#write.table(ICD9_dobs_new_format, file = "/Users/carly/Desktop/Metabochip Project/ICD9_dobs_new_format.txt", sep = "\t",
+     #       row.names = FALSE, col.names = TRUE)
+```
+
+Take table and do the following in Excel:
+
+1.  Countif record has the code 331.0 and repeat for 290, 290.1, and 290.2.
+2.  Sum these four columns to get the total count for these codes
+3.  Case if record has 331.0 and case if record as nonzero value in sum column
+4.  For cases, take the minimum date (date of first diagnosis). For controls, take the last visit date (maximum).
+5.  Calculate age (age first diagnosed for cases, age last visit for controls)
+6.  Filter controls to only include those \>=65.
+7.  Create new spreadsheet with just the information we want to condense data
+8.  Input the new sheets below for analysis
+
+```{r}
+cases_331 <- read_excel('/Users/carly/Desktop/Metabochip Project/CaseControl_FinalAnalysis.xlsx', sheet = "cases_331")
+
+cases_all <- read_excel('/Users/carly/Desktop/Metabochip Project/CaseControl_FinalAnalysis.xlsx', sheet = "cases_all")
+
+controls_331 <- read_excel('/Users/carly/Desktop/Metabochip Project/CaseControl_FinalAnalysis.xlsx', sheet = "controls_331")
+
+controls_all <- read_excel('/Users/carly/Desktop/Metabochip Project/CaseControl_FinalAnalysis.xlsx', sheet = "controls_all")
+```
+
+Distributions of Variables for Table 1
+
+```{r}
+mean(cases_331$age)
+sd(cases_331$age)
+
+table(cases_331$gender.x)
+
+table(cases_331$new_race.x)
+```
+
+```{r}
+mean(cases_all$age)
+sd(cases_all$age)
+
+table(cases_all$gender.x)
+
+table(cases_all$new_race.x)
+```
+
+```{r}
+mean(controls_331$age_last_visit)
+sd(controls_331$age_last_visit)
+
+table(controls_331$gender.x)
+
+table(controls_331$new_race.x)
+```
+
+```{r}
+mean(controls_all$age_last_visit)
+sd(controls_all$age_last_visit)
+
+table(controls_all$gender.x)
+
+table(controls_all$new_race.x)
+```
+
+# Create table that merge ICD9 and Risk Scores
+
+Change all column names so they match to be able to bind them together.
+
+```{r}
+colnames(cases_331) <- c("RUID", "race", "sex", "genotyped", "count_331",
+                         "count_290", "count_290.1", "count_290.2", "sum",
+                         "casecontrol", "dob", "min_if_331", "min_if_290",
+                         "min_if_290.1", "min_if_290.2", "min_date", "age")
+
+colnames(controls_331) <- c("RUID", "race", "sex", "genotyped", "count_331",
+                         "count_290", "count_290.1", "count_290.2", "sum",
+                         "casecontrol", "dob", "min_if_331", "min_if_290",
+                         "min_if_290.1", "min_if_290.2", "min_date", "age")
+
+colnames(cases_all) <- c("RUID", "race", "sex", "genotyped", "count_331",
+                         "count_290", "count_290.1", "count_290.2", "sum",
+                         "casecontrol", "dob", "min_if_331", "min_if_290",
+                         "min_if_290.1", "min_if_290.2", "min_date", "age")
+
+colnames(controls_all) <- c("RUID", "race", "sex", "genotyped", "count_331",
+                         "count_290", "count_290.1", "count_290.2", "sum",
+                         "casecontrol", "dob", "min_if_331", "min_if_290",
+                         "min_if_290.1", "min_if_290.2", "min_date", "age")
+```
+
+```{r}
+casecontrol_331 <- rbind(cases_331, controls_331)
+casecontrol_all <- rbind(cases_all, controls_all)
+```
+
+Make all ID columns be RUID so the merge can happen.
+
+```{r}
+colnames(metabochip_risk_AA)[1] <- "RUID"
+colnames(metabochip_risk_asian)[1] <- "RUID"
+colnames(metabochip_risk_hisp)[1] <- "RUID"
+```
+
+```{r}
+metabochip_allRaces <- rbind(metabochip_risk_AA, metabochip_risk_asian,
+                             metabochip_risk_hisp)
+```
+
+```{r}
+colnames(metabochip_allRaces)[1] <- "RUID_fake"
+colnames(metabochip_allRaces)[2] <- "RUID"
+```
+
+Create new Case/Control tables with Risk Values attached
+
+```{r}
+casecontrol_risk_331 <- merge(x = casecontrol_331, y = metabochip_allRaces,
+                             by = "RUID", all.x = TRUE)
+
+casecontrol_risk_all <- merge(x = casecontrol_all, y = metabochip_allRaces,
+                             by = "RUID", all.x = TRUE)
+
+```
+
+```{r}
+miss_var_summary(casecontrol_risk_331)
+```
+
+```{r}
+miss_var_summary(casecontrol_risk_all)
+```
+
+## Risk Score Distributions for Cases/Controls
+
+```{r}
+cases_with_risk_331 <- casecontrol_risk_331 %>%
+  filter(casecontrol=="case")
+
+cases_with_risk_all <- casecontrol_risk_all %>%
+  filter(casecontrol=="case")
+
+controls_with_risk_331 <- casecontrol_risk_331 %>%
+  filter(casecontrol=="control")
+
+controls_with_risk_all <- casecontrol_risk_all %>%
+  filter(casecontrol=="control")
+```
+
+```{r}
+#cases 331.0 - unweighted
+print("Cases 331.0 - Not Weighted")
+mean(cases_with_risk_331$risk, na.rm = TRUE)
+sd(cases_with_risk_331$risk, na.rm = TRUE)
+range(cases_with_risk_331$risk, na.rm = TRUE)
+
+#cases 331.0 - weighted
+print("Cases 331.0 - Weighted")
+mean(cases_with_risk_331$weighted_risk, na.rm = TRUE)
+sd(cases_with_risk_331$weighted_risk, na.rm = TRUE)
+range(cases_with_risk_331$weighted_risk, na.rm = TRUE)
+
+#controls 331.0 - unweighted
+print("Controls 331.0 - Not Weighted")
+mean(controls_with_risk_331$risk, na.rm = TRUE)
+sd(controls_with_risk_331$risk, na.rm = TRUE)
+range(controls_with_risk_331$risk, na.rm = TRUE)
+
+#controls 331.0 - weighted
+print("Controls 331.0 - Weighted")
+mean(controls_with_risk_331$weighted_risk, na.rm = TRUE)
+sd(controls_with_risk_331$weighted_risk, na.rm = TRUE)
+range(controls_with_risk_331$weighted_risk, na.rm = TRUE)
+
+#cases all - unweighted 
+print("Cases All - Not Weighted")
+mean(cases_with_risk_all$risk, na.rm = TRUE)
+sd(cases_with_risk_all$risk, na.rm = TRUE)
+range(cases_with_risk_all$risk, na.rm = TRUE)
+
+#cases all - weighted
+print("Cases All - Weighted")
+mean(cases_with_risk_all$weighted_risk, na.rm = TRUE)
+sd(cases_with_risk_all$weighted_risk, na.rm = TRUE)
+range(cases_with_risk_all$weighted_risk, na.rm = TRUE)
+
+#controls all - unweighted
+print("Controls All - Not Weighted")
+mean(controls_with_risk_all$risk, na.rm = TRUE)
+sd(controls_with_risk_all$risk, na.rm = TRUE)
+range(controls_with_risk_all$risk, na.rm = TRUE)
+
+#controls all - weighted
+print("Controls All - Weighted")
+mean(controls_with_risk_all$weighted_risk, na.rm = TRUE)
+sd(controls_with_risk_all$weighted_risk, na.rm = TRUE)
+range(controls_with_risk_all$weighted_risk, na.rm = TRUE)
+```
+
+## Add in PC File
+
+```{r}
+PC_file <- read_delim("/Users/carly/Desktop/Metabochip Project/Lipids/EAGLE_BioVU_PCs_AA_2022-01-17.txt") %>%
+  mutate(RUID = IID) %>%
+  select(-FID, -IID)
+```
+
+```{r}
+casecontrol_risk_331 <- merge(casecontrol_risk_331, PC_file, by = "RUID", all.x=TRUE)
+
+casecontrol_risk_all <- merge(casecontrol_risk_all, PC_file, by = "RUID", all.x=TRUE)
+```
+
+```{r}
+library(ggfortify)
+
+pca_res <- prcomp(PC_file, scale. = TRUE)
+
+autoplot(pca_res)
+autoplot(pca_res, x = 2, y = 3)
+autoplot(pca_res, x = 3, y = 4)
+```
+
+# Tests of Association
+
+## Logistic Regression - 331.0
+
+First, mutate the case/control status to be 0's and 1's for input in the logistic regression (1 = case, 0 = control)
+
+```{r}
+casecontrol_risk_331 <- casecontrol_risk_331 %>%
+  mutate(casecontrol = ifelse(casecontrol == "case", 1, 0))
+```
+
+### Weighted
+
+```{r}
+logistic_model_331_weighted <- glm(casecontrol ~ weighted_risk + age + sex + pc1 + pc2,
+                          family = "binomial", data = casecontrol_risk_331, 
+                          subset = race=="B")
+```
+
+Print Summary Statistics to Examine Model
+
+```{r}
+summary(logistic_model_331_weighted)
+```
+
+```{r}
+summary(logistic_model_331_weighted)$coefficients
+```
+
+```{r}
+exp(coef(logistic_model_331_weighted))
+```
+
+```{r}
+CI_lower <- exp(coefficients(logistic_model_331_weighted)[2] - 
+  1.96*summary(logistic_model_331_weighted)$coefficients[2,2])
+
+CI_upper <- exp(coefficients(logistic_model_331_weighted)[2] + 
+  1.96*summary(logistic_model_331_weighted)$coefficients[2,2])
+
+CI_lower
+CI_upper
+```
+
+```{r}
+confint(logistic_model_331_weighted)
+```
+
+### Not Weighted
+
+```{r}
+logistic_model_331_unweighted <- glm(casecontrol ~ risk + age + sex + pc1 + pc2,                          
+                          family = "binomial", data = casecontrol_risk_331, subset = race=="B")
+```
+
+Print Summary Statistics to Examine Model
+
+```{r}
+summary(logistic_model_331_unweighted)
+```
+
+```{r}
+summary(logistic_model_331_unweighted)$coefficients
+```
+
+```{r}
+exp(coef(logistic_model_331_unweighted))
+```
+
+```{r}
+CI_lower <- exp(coefficients(logistic_model_331_unweighted)[2] -    
+                  1.96*summary(logistic_model_331_unweighted)$coefficients[2,2]) 
+
+CI_upper <- exp(coefficients(logistic_model_331_unweighted)[2] +    
+                  1.96*summary(logistic_model_331_unweighted)$coefficients[2,2])  
+
+CI_lower
+CI_upper
+```
+
+```{r}
+confint(logistic_model_331_unweighted)
+```
+
+## Logistic Regression - 331.0, 290.0, 290.1, or 290.2
+
+First, mutate the case/control status to be 0's and 1's for input in the logistic regression (1 = case, 0 = control)
+
+```{r}
+casecontrol_risk_all <- casecontrol_risk_all %>%   
+  mutate(casecontrol = ifelse(casecontrol == "case", 1, 0))
+```
+
+### Weighted
+
+```{r}
+logistic_model_all_weighted <- glm(casecontrol ~ weighted_risk + age + sex + pc1 + pc2,                           family = "binomial", data = casecontrol_risk_all, subset = race=="B")
+```
+
+Print Summary Statistics to Examine Model
+
+```{r}
+summary(logistic_model_all_weighted)
+```
+
+```{r}
+summary(logistic_model_all_weighted)$coefficients
+```
+
+```{r}
+exp(coef(logistic_model_all_weighted))
+```
+
+```{r}
+CI_lower <- exp(coefficients(logistic_model_all_weighted)[2] -    
+                  1.96*summary(logistic_model_all_weighted)$coefficients[2,2]) 
+
+CI_upper <- exp(coefficients(logistic_model_all_weighted)[2] +    
+                  1.96*summary(logistic_model_all_weighted)$coefficients[2,2])  
+
+CI_lower 
+CI_upper
+```
+
+```{r}
+confint(logistic_model_all_weighted)
+```
+
+### Not Weighted
+
+```{r}
+logistic_model_all_unweighted <- glm(casecontrol ~ risk + age + sex + pc1 + pc2, family = "binomial", 
+                                     data = casecontrol_risk_all, subset = race=="B")
+```
+
+Print Summary Statistics to Examine Model
+
+```{r}
+summary(logistic_model_all_unweighted)
+```
+
+```{r}
+summary(logistic_model_all_unweighted)$coefficients
+```
+
+```{r}
+exp(coef(logistic_model_all_unweighted))
+```
+
+```{r}
+CI_lower <- exp(coefficients(logistic_model_all_unweighted)[2] -                       1.96*summary(logistic_model_all_unweighted)$coefficients[2,2])   
+
+CI_upper <- exp(coefficients(logistic_model_all_unweighted)[2] +                       1.96*summary(logistic_model_all_unweighted)$coefficients[2,2])    
+
+CI_lower 
+CI_upper
+```
+
+```{r}
+confint(logistic_model_all_unweighted)
+```
+
+# Random plots for poster
+
+## SNP List Plots
+
+```{r}
+SNP_names <- c('AD', 'TG', 'TC', 'LDL-C', 'HDL-C', 'MDD')
+Metabochip_SNPs <- c(6, 51, 48, 36, 44, 17)
+GWAS_cat_SNPs <- c(120, 73, 75, 56, 80, 398)
+
+
+df_layered_graph <- data.frame(SNP_names, Metabochip_SNPs, GWAS_cat_SNPs)
+```
+
+```{r}
+SNP_names <- c('AD', 'TG', 'TC', 'LDL-C', 'HDL-C')
+Metabochip_SNPs <- c(6, 51, 48, 36, 44)
+GWAS_cat_SNPs <- c(120, 73, 75, 56, 80)
+
+
+df_layered_graph <- data.frame(SNP_names, Metabochip_SNPs, GWAS_cat_SNPs)
+```
+
+```{r}
+df_stacked_bar <- df_layered_graph |>
+  pivot_longer(cols = c("Metabochip_SNPs", "GWAS_cat_SNPs"),
+               names_to = "SNPs")
+
+df_stacked_bar_Metabochip <- df_layered_graph |>
+  pivot_longer(cols = "Metabochip_SNPs", names_to = "SNPs")
+
+totals <- df_stacked_bar %>%
+  group_by(SNP_names) %>%
+  summarise(total = sum(value))
+
+ggplot(df_stacked_bar,
+       aes(x = SNP_names, y = value, fill = SNPs)) +
+  labs(x = "Phenotype", y = "Number of SNPs",
+       title = "SNPs on Metabochip in GWAS-significant Catalog for each Phenotype", 60) +
+  geom_col() +
+  geom_bar(stat = "identity") +
+ # geom_text(aes(label=value), vjust = -0.9) +
+  geom_text(data = totals, aes(x = SNP_names, label = total, y = total, fill = NULL), nudge_y = 10) +
+  geom_text(data = df_stacked_bar_Metabochip, aes(x = SNP_names, label = value, y = value, fill = NULL), nudge_y = 10) +
+  guides(fill = guide_legend(title = "SNP Lists")) +
+ # geom_text(aes(x = SNP_names, label = value, y = value, fill = NULL), size = 3, position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = c("grey", "black"), labels = c("GWAS Catalog", "Metabochip"))+
+  theme_bw()
+```
+
+## Ancestry Plots
+
+```{r}
+ancestry_AA <- read.table("/Users/carly/Desktop/Metabochip Project/Afr_Am_Global_Estimates_Structure.txt",
+                       header = TRUE)
+
+ancestry_asian <- read.table("/Users/carly/Desktop/Metabochip Project/Asians_Global_Estimates_Structure.txt",
+                             header = TRUE)
+
+ancestry_hisp <- read.table("/Users/carly/Desktop/Metabochip Project/Latinos_Global_Estimates_Structure.txt",
+                             header = TRUE)
+```
+
+```{r}
+ancestry_bind <- rbind(ancestry_AA, ancestry_asian, ancestry_hisp)
+```
+
+### Global Ancestry - All Samples
+
+```{r}
+df_layered_graph_ancestry <- data.frame(ancestry_bind$IID, ancestry_bind$Global_1, ancestry_bind$Global_2, ancestry_bind$Global_3)
+
+df_stacked_bar_ancestry <- df_layered_graph_ancestry |>
+  pivot_longer(cols = c("ancestry_bind.Global_1", "ancestry_bind.Global_2", "ancestry_bind.Global_3"),
+               names_to = "Global",
+               values_to = "values")
+
+ggplot(df_stacked_bar_ancestry, 
+       aes(x = ancestry_bind.IID, y = values, fill = Global)) +
+  geom_col()
+               
+```
+
+```{r}
+ancestry_bind_ordered <- ancestry_bind %>%
+  arrange(desc(Global_2))
+
+ancestry_bind_ordered$observation <- 1:nrow(ancestry_bind_ordered)
+
+df_stacked_bar_ancestry <- ancestry_bind_ordered |>
+  pivot_longer(cols = c("Global_1", "Global_2", "Global_3"),
+               names_to = "Global",
+               values_to = "values")
+
+p5 <- ggplot(df_stacked_bar_ancestry, 
+       aes(x = observation, y = values, fill = Global)) +
+  geom_col() +
+  labs(x = "Individual", y = "Proportion",        
+       title = "Global Ancestry Proportions by Individual", 60) +   
+  scale_fill_discrete(labels = c("European", "West African", "East Asian")) +   
+  guides(fill = guide_legend(title = "Global Ancestry")) +   
+  theme_bw()
+
+```
+
+```{r}
+colnames(ancestry_bind)[1] <- "RUID"
+```
+
+### Global Ancestry - Case/Control Status 331.0
+
+```{r}
+ancestry_casecontrol_331 <- merge(casecontrol_risk_331, ancestry_bind, all.x = TRUE)
+```
+
+```{r}
+ancestry_casecontrol_331_case <- ancestry_casecontrol_331 %>%
+  filter(complete.cases(Global_1)) %>%
+  filter(casecontrol == 1)
+```
+
+```{r}
+ancestry_casecontrol_331_case_ordered <- ancestry_casecontrol_331_case %>%
+  arrange(desc(Global_2))
+```
+
+```{r}
+ancestry_casecontrol_331_case_ordered$observation <- 1:nrow(ancestry_casecontrol_331_case_ordered)
+
+ancestry_casecontrol_331_stacked <- ancestry_casecontrol_331_case_ordered |>
+  pivot_longer(cols = c("Global_1", "Global_2", "Global_3"),
+               names_to = "Global",
+               values_to = "values")
+
+p1 <- ggplot(ancestry_casecontrol_331_stacked, 
+       aes(x = observation, y = values, fill = Global)) +
+  geom_col() +
+  labs(x = "Individual", y = "Proportion",
+       title = "Cases (1)", 60) +
+  scale_fill_discrete(labels = c("European", "West African", "East Asian")) +
+  guides(fill = guide_legend(title = "Global Ancestry")) +
+  theme_bw()
+```
+
+```{r}
+ancestry_casecontrol_331_control <- ancestry_casecontrol_331 %>%
+  filter(complete.cases(Global_1)) %>%
+  filter(casecontrol == 0)
+```
+
+```{r}
+ancestry_casecontrol_331_control_ordered <- ancestry_casecontrol_331_control %>%
+  arrange(desc(Global_2))
+```
+
+```{r}
+ancestry_casecontrol_331_control_ordered$observation <- 1:nrow(ancestry_casecontrol_331_control_ordered)
+
+ancestry_casecontrol_331_stacked <- ancestry_casecontrol_331_control_ordered |>
+  pivot_longer(cols = c("Global_1", "Global_2", "Global_3"),
+               names_to = "Global",
+               values_to = "values")
+
+p2 <- ggplot(ancestry_casecontrol_331_stacked, 
+       aes(x = observation, y = values, fill = Global)) +
+  geom_col() +
+  labs(x = "Individual", y = "Proportion",
+       title = "Controls (1)", 60) +
+  scale_fill_discrete(labels = c("European", "West African", "East Asian")) +
+  guides(fill = guide_legend(title = "Global Ancestry")) +
+  theme_bw()
+```
+
+### Global Ancestry - Case/Control Status All Codes
+
+```{r}
+ancestry_casecontrol_all <- merge(casecontrol_risk_all, ancestry_bind, all.x = TRUE)
+```
+
+```{r}
+ancestry_casecontrol_all_case <- ancestry_casecontrol_all %>%   
+  filter(complete.cases(Global_1)) %>%   
+  filter(casecontrol == 1)
+```
+
+```{r}
+ancestry_casecontrol_all_case_ordered <- ancestry_casecontrol_all_case %>%   
+  arrange(desc(Global_2))
+```
+
+```{r}
+ancestry_casecontrol_all_case_ordered$observation <- 1:nrow(ancestry_casecontrol_all_case_ordered) 
+
+ancestry_casecontrol_all_stacked <- ancestry_casecontrol_all_case_ordered |>   
+  pivot_longer(cols = c("Global_1", "Global_2", "Global_3"),                
+               names_to = "Global",                
+               values_to = "values")  
+
+p3 <- ggplot(ancestry_casecontrol_all_stacked, aes(x = observation, y = values, fill = Global)) +   
+  geom_col() +   
+  labs(x = "Individual", y = "Proportion",        
+                      title = "Cases (2)", 60) +   
+  scale_fill_discrete(labels = c("European", "West African", "East Asian")) +   
+  guides(fill = guide_legend(title = "Global Ancestry")) +   
+  theme_bw()
+```
+
+```{r}
+ancestry_casecontrol_all_control <- ancestry_casecontrol_all %>%   
+  filter(complete.cases(Global_1)) %>%   
+  filter(casecontrol == 0)
+```
+
+```{r}
+ancestry_casecontrol_all_control_ordered <- ancestry_casecontrol_all_control %>%   
+  arrange(desc(Global_2))
+```
+
+```{r}
+ancestry_casecontrol_all_control_ordered$observation <- 1:nrow(ancestry_casecontrol_all_control_ordered) 
+
+ancestry_casecontrol_all_stacked <- ancestry_casecontrol_all_control_ordered |>   
+  pivot_longer(cols = c("Global_1", "Global_2", "Global_3"),                
+               names_to = "Global",                
+               values_to = "values")  
+
+p4 <- ggplot(ancestry_casecontrol_all_stacked, aes(x = observation, y = values, fill = Global)) +   
+  geom_col() +   
+  labs(x = "Individual", y = "Proportion",        
+       title = "Controls (2)", 60) +   
+  scale_fill_discrete(labels = c("European", "West African", "East Asian")) +   
+  guides(fill = guide_legend(title = "Global Ancestry")) +   
+  theme_bw()
+```
+
+```{r}
+ggarrange(p1, p2, ncol = 2, nrow = 1,
+          common.legend = TRUE, legend = "right")
+```
+
+```{r}
+library(patchwork)
+
+p3 + p4 + 
+  plot_layout(ncol = 1) +
+  plot_annotation(title = "Global Ancestry for Definition 2 Case/Control Status") +
+  plot_layout(guides = "collect")
+```
+
+```{r}
+p5 + p1 + p2 + p3 + p4 +
+  plot_layout(ncol = 1)
+```
+
+```{r}
+(p5 / (p1 + p2) + / (p3 + p4)) +
+  plot_layout(guides = "collect")
+```
+
+```{r}
+p6 <- p1 + p2 +
+  plot_annotation(title = "ICD-9-CM 331.0 Code")
+
+p7 <- p3 + p4 +
+  plot_annotation(title = "ICD-9-CM 331.0, 290.0, 290.1 or 290.2 Code")
+```
+
+```{r}
+(p5 / p6 / p7) + 
+  plot_layout(guides = "collect")
+```
+
+### Global Ancestry - Averages - t-test
+
+```{r}
+mean(ancestry_casecontrol_331_case_ordered$Global_2)
+mean(ancestry_casecontrol_331_control_ordered$Global_2)
+
+mean(ancestry_casecontrol_all_case_ordered$Global_2)
+mean(ancestry_casecontrol_all_control_ordered$Global_2)
+```
+
+```{r}
+df_ttest_331 <- rbind(ancestry_casecontrol_331_case_ordered, ancestry_casecontrol_331_control_ordered)
+```
+
+```{r}
+boxplot(Global_2 ~ casecontrol, data = df_ttest_331)
+```
+
+```{r}
+t.test(Global_2 ~ casecontrol, data = df_ttest_331)
+```
+
+```{r}
+df_ttest_all <- rbind(ancestry_casecontrol_all_case_ordered, ancestry_casecontrol_all_control_ordered)
+```
+
+```{r}
+boxplot(Global_2 ~ casecontrol, data = df_ttest_all)
+```
+
+```{r}
+t.test(Global_2 ~ casecontrol, data = df_ttest_all)
+```
+
+## Density Plots - Risk Scores (Stratified by Case/Control Status)
+
+```{r}
+casecontrol_risk_331 <- casecontrol_risk_331 %>%   
+  mutate(casecontrol = ifelse(casecontrol == 1, "case", "control"))
+```
+
+```{r}
+ad_p1 <- ggplot(casecontrol_risk_331, aes(x = weighted_risk, group = casecontrol, fill = casecontrol)) +   
+  scale_color_manual(values = c("blue", "red"), labels = c("Case", "Control")) +   
+  labs(title = "Alzheimer Disease", x = "Weighted GRS", y = "Density") +   
+  guides(fill = guide_legend(title = "AD Status")) +   
+  geom_density(alpha = 0.5) +   
+  theme_bw()
+```
+
+```{r}
+casecontrol_risk_all <- casecontrol_risk_all %>%      
+  mutate(casecontrol = ifelse(casecontrol == 1, "case", "control"))
+```
+
+```{r}
+ad_q1 <- ggplot(casecontrol_risk_all, aes(x = weighted_risk, group = casecontrol, fill = casecontrol)) +   
+  scale_color_manual(values = c("blue", "red"), labels = c("Case", "Control")) +   
+  labs(title = "Alzheimer Disease", x = "Weighted GRS", y = "Density") +   
+  guides(fill = guide_legend(title = "AD Status")) +   
+  geom_density(alpha = 0.5) +   
+  theme_bw()
+```
+
+```{r}
+ggarrange(p1, q1, ncol = 1, nrow = 1,
+          common.legend = TRUE, legend = "right")
+```
+
+```{r}
+hist(casecontrol_risk_331$weighted_risk)
+```
+
+```{r}
+ggplot(casecontrol_risk_331, aes(x = casecontrol, y = weighted_risk, group = casecontrol, fill = casecontrol)) +   
+  scale_color_manual(values = c("blue", "red"), labels = c("Case", "Control")) +   
+  labs(title = "Alzheimer Disease", x = "Weighted PRS", y = "Density") +   
+  guides(fill = guide_legend(title = "AD Status")) +   
+  geom_violin(alpha = 0.5) +   
+  theme_bw()
+```

@@ -1,0 +1,770 @@
+---
+title: "MDD"
+format: html
+editor: visual
+---
+```{r}
+
+```
+
+# MDD
+
+## Install Packages
+
+```{r}
+library(here) 
+library(readxl) 
+library(data.table) 
+library(janitor) 
+library(ggpubr) 
+library(moments) 
+library(naniar) 
+library(tableone) 
+library(transplantr) 
+library(nnet) 
+library(tidyverse)
+```
+
+## Load Data
+
+### MDD - African American
+
+```{r}
+MDD_AA_map <- read.table('/Users/carly/Desktop/Metabochip Project/MDD/MDD/Metabochip_AA_11222022_MDD_Map.map', header = FALSE)  
+
+MDD_AA_ped <- read.table('/Users/carly/Desktop/Metabochip Project/MDD/MDD/Metabochip_AA_11222022_MDD_Map.ped', header = FALSE)
+```
+
+### MDD - Asian
+
+```{r}
+MDD_Asians_map <- read.table('/Users/carly/Desktop/Metabochip Project/MDD/MDD/Metabochip_Asians_04012013_MDD_Map.map', header = FALSE)  
+
+MDD_Asians_ped <- read.table('/Users/carly/Desktop/Metabochip Project/MDD/MDD/Metabochip_Asians_04012013_MDD_Map.ped', header = FALSE)
+```
+
+### MDD - Hispanic
+
+```{r}
+MDD_hisp_map <- read.table('/Users/carly/Desktop/Metabochip Project/MDD/MDD/Metabochip_Latinos_11222022_MDD_Map.map', header = FALSE)  
+
+MDD_hisp_ped <- read.table('/Users/carly/Desktop/Metabochip Project/MDD/MDD/Metabochip_Latinos_11222022_MDD_Map.ped', header = FALSE)
+```
+
+### Supplemental Table (SNP list for all 4 Lipids)
+
+```{r}
+Hu_SuppTable7_2020 <- read_excel("/Users/carly/Desktop/Metabochip Project/Lipids/PRS/Hu_SuppTable7_2020.xlsx")
+```
+
+### BioVu Clinical Data
+
+```{r}
+Biovud <- read.table("/Users/carly/Desktop/Metabochip Project/Lipids/Lipids_Group_Version3_Biovu_08192013.txt", header = TRUE)
+```
+
+### PC File
+
+```{r}
+PC_file <- read_delim("/Users/carly/Desktop/Metabochip Project/Lipids/EAGLE_BioVU_PCs_AA_2022-01-17.txt") %>%   mutate(RUID = IID) %>%   select(-FID, -IID)
+```
+
+## Clean Data
+
+```{r}
+#AA 
+colnames(MDD_AA_map) = c("chr", "SNP", "genetic_pos", "physical_pos") 
+colnames(MDD_AA_ped) = c("fid", "iid", "pid", "mid", "sex", "pheno")  
+
+#Asians
+colnames(MDD_Asians_map) = c("chr", "SNP", "genetic_pos", "physical_pos") 
+colnames(MDD_AA_ped) = c("fid", "iid", "pid", "mid", "sex", "pheno")  
+
+#Hispanics
+colnames(MDD_hisp_map) = c("chr", "SNP", "genetic_pos", "physical_pos") 
+colnames(MDD_hisp_ped) = c("fid", "iid", "pid", "mid", "sex", "pheno")  
+```
+
+## PRS Calculation Preparations
+
+1.  Obtain SNP Information
+
+```{r}
+#AA 
+AA_SNP <- MDD_AA_ped[, -c(1, 3:6)] #11,301 individuals 
+AA_SNP[AA_SNP == "0"] <- NA  
+AA_SNP_full <- AA_SNP[complete.cases(AA_SNP), ] #11,159  
+
+#Asians 
+A_SNP <- MDD_Asians_ped[, -c(1, 3:6)] #1,064 individuals 
+A_SNP[A_SNP == "0"] <- NA  
+A_SNP_full <- A_SNP[complete.cases(A_SNP), ] #1,054  
+
+#Hispanics 
+Hisp_SNP <- MDD_hisp_ped[, -c(1, 3:6)] #1,516 individuals 
+Hisp_SNP[Hisp_SNP == "0"] <- NA  
+Hisp_SNP_full <- Hisp_SNP[complete.cases(Hisp_SNP), ] #1,491  
+```
+
+Merge 2 alleles for each individual
+
+```{r}
+#AA 
+AA_SNP_merged <- data.frame(AA_SNP_full[1],                             
+                            mapply(paste0, AA_SNP_full[-1][c(F,T)],                                    AA_SNP_full[-1][c(T,F)]))  
+
+#Asians 
+A_SNP_merged <- data.frame(A_SNP_full[1],                             
+                            mapply(paste0, A_SNP_full[-1][c(F,T)],                                    A_SNP_full[-1][c(T,F)]))  
+
+#Hispanics 
+Hisp_SNP_merged <- data.frame(Hisp_SNP_full[1],                             
+                             mapply(paste0, Hisp_SNP_full[-1][c(F,T)],                                    Hisp_SNP_full[-1][c(T,F)]))  
+```
+
+Add column names
+
+```{r}
+##A 
+colnames(AA_SNP_merged) <- c("iid", MDD_AA_map$SNP) 
+
+#Asians 
+colnames(A_SNP_merged) <- c("iid", MDD_Asians_map$SNP) 
+
+#Hispanics 
+colnames(Hisp_SNP_merged) <- c("iid", MDD_hisp_map$SNP)  #Eliminating rs3824344 based on hwe
+Hisp_SNP_merged <- subset(Hisp_SNP_merged, select = -c(rs3824344)) 
+```
+
+2.  Transpose the genotype data frame. We are going to construct data frame with rows representing SNPs and columns representing individuals.
+
+```{r}
+#AA 
+AA_SNP_t <- data.frame(t(AA_SNP_merged)) #transpose data frame 
+colnames(AA_SNP_t) <- AA_SNP_t[1,] #assign column names 
+AA_SNP_t <- AA_SNP_t[-1,] #discard the row used for storing column name information
+AA_SNP_t$SNP <- rownames(AA_SNP_t)  
+
+#Asians 
+A_SNP_t <- data.frame(t(A_SNP_merged)) #transpose data frame 
+colnames(A_SNP_t) <- A_SNP_t[1,] #assign column names 
+A_SNP_t <- A_SNP_t[-1,] #discard the row used for storing column name information
+A_SNP_t$SNP <- rownames(A_SNP_t)  
+
+#Hisp 
+Hisp_SNP_t <- data.frame(t(Hisp_SNP_merged)) #transpose data frame 
+colnames(Hisp_SNP_t) <- Hisp_SNP_t[1,] #assign column names 
+Hisp_SNP_t <- Hisp_SNP_t[-1,] #discard the row used for storing column name information 
+Hisp_SNP_t$SNP <- rownames(Hisp_SNP_t)  
+```
+
+3.  Deal with Coding Alleles (CA)
+
+```{r}
+MDD_supptable <- read_excel("/Users/carly/Desktop/Metabochip Project/MDD/MDD/MDD_GWAS_Catalog_MetaboChip_2023-09-06.xlsx", sheet = "Sheet1")
+
+colnames(MDD_supptable)[ncol(MDD_supptable)] <- "BETA"
+colnames(MDD_supptable)[7] <- "CA"
+
+
+```
+
+```{r}
+#AA 
+dt_ref_AA <- MDD_supptable 
+ref_AA_merge <- merge(MDD_AA_map, dt_ref_AA, by = "SNP", sort = FALSE) 
+ref_AA_used <- ref_AA_merge %>%   
+  select(SNP, BETA, CA) 
+
+#Asians 
+dt_ref_A <- MDD_supptable 
+ref_A_merge <- merge(MDD_Asians_map, dt_ref_A, by = "SNP", sort = FALSE) 
+ref_A_used <- ref_A_merge %>%   
+  select(SNP, BETA, CA) 
+
+#Hipanics 
+dt_ref_hisp <- MDD_supptable   
+ref_hisp_merge <- merge(MDD_hisp_map, dt_ref_hisp, by = "SNP", sort = FALSE) 
+ref_hisp_used <- ref_hisp_merge %>%   
+  select(SNP, BETA, CA)  
+```
+
+4.  Assign CA complements
+
+```{r}
+convertToComplement<-function(x){   
+  bases=c("A","C","G","T")   
+  if(x=="A") comp<-"T"   
+  if(x=="C") comp<-"G"   
+  if(x=="G") comp<-"C"   
+  if(x=="T") comp<-"A"   
+  if(!x %in% bases) comp<-"N"   
+  return(comp) 
+  }
+```
+
+```{r}
+#AA 
+ref_AA_used$CA_complement <- sapply(ref_AA_used$CA, convertToComplement)  
+
+#Asians 
+ref_A_used$CA_complement <- sapply(ref_A_used$CA, convertToComplement)  
+
+#Hispanics 
+ref_hisp_used$CA_complement <- sapply(ref_hisp_used$CA, convertToComplement)    
+```
+
+## Unweighted PRS
+
+Task: Count risk alleles, i.e., CA
+
+### 1. Preparations
+
+```{r}
+#AA 
+##merge SNP records and CA info 
+AA_SNP_use <- merge(AA_SNP_t, ref_AA_used, by = "SNP", sort = FALSE)  
+
+##count the occurrence of CA 
+AA_SNP_dTable_ca <- data.table(AA_SNP_use) 
+AA_SNP_dTable_ca[, (2:11160) := lapply(.SD, function(x)   
+  str_count(x, AA_SNP_dTable_ca[['CA']]) ), .SDcols = 2:11160]
+
+##count the occurrence of CA complement 
+AA_SNP_dTable_comp <- data.table(AA_SNP_use) 
+AA_SNP_dTable_comp[, (2:11160) := lapply(.SD, function(x)   
+  str_count(x, AA_SNP_dTable_comp[['CA_complement']]) ), .SDcols = 2:11160]  
+
+##################################################################################  
+#Asians 
+##merge SNP records and CA info 
+A_SNP_use <- merge(A_SNP_t, ref_A_used, by = "SNP", sort = FALSE)  
+
+##count the occurrence of CA 
+A_SNP_dTable_ca <- data.table(A_SNP_use) 
+A_SNP_dTable_ca[, (2:1055) := lapply(.SD, function(x)   
+  str_count(x, A_SNP_dTable_ca[['CA']]) ), .SDcols = 2:1055]
+
+##count the occurrence of CA complement 
+A_SNP_dTable_comp <- data.table(A_SNP_use) 
+A_SNP_dTable_comp[, (2:1055) := lapply(.SD, function(x)   
+  str_count(x, A_SNP_dTable_comp[['CA_complement']]) ), .SDcols = 2:1055] 
+
+##################################################################################  
+#Hispanics 
+##merge SNP records and CA info 
+Hisp_SNP_use <- merge(Hisp_SNP_t, ref_hisp_used, by = "SNP", sort = FALSE)  
+
+##count the occurrence of CA 
+Hisp_SNP_dTable_ca <- data.table(Hisp_SNP_use) 
+Hisp_SNP_dTable_ca[, (2:1492) := lapply(.SD, function(x)   
+  str_count(x, Hisp_SNP_dTable_ca[['CA']]) ), .SDcols = 2:1492]
+
+##count the occurrence of CA complement 
+Hisp_SNP_dTable_comp <- data.table(Hisp_SNP_use) 
+Hisp_SNP_dTable_comp[, (2:1492) := lapply(.SD, function(x)   
+  str_count(x, Hisp_SNP_dTable_comp[['CA_complement']]) ), .SDcols = 2:1492] 
+```
+
+### 2. Deal with Strand Issues
+
+```{r}
+#AA 
+##Identify rows in CA counting that are all zeros 
+AA_with_ca <- data.frame(SNP = AA_SNP_use$SNP,                   
+                         CA = rep("YES", length(AA_SNP_use$SNP))) #YES represents CA there  
+for (i in 1:nrow(AA_SNP_dTable_ca)) {   
+  if(all(AA_SNP_dTable_ca[i, 2:11160]==0)) {     
+    AA_with_ca$CA[i] <- "NO"   
+    } } ##SNPs without CA will have NO. Select corresponding CA_comp count to replace the zeros in the CA count  
+
+AA_require_comp <- AA_with_ca %>% 
+  filter(CA == "NO") 
+SNPs_AA <- AA_require_comp$SNP #SNPs required 
+
+################################################################################### 
+#Asians 
+##Identify rows in CA counting that are all zeros 
+A_with_ca <- data.frame(SNP = A_SNP_use$SNP,                   
+                         CA = rep("YES", length(A_SNP_use$SNP))) #YES represents CA there  
+for (i in 1:nrow(A_SNP_dTable_ca)) {   
+  if(all(A_SNP_dTable_ca[i, 2:1055]==0)) {     
+    A_with_ca$CA[i] <- "NO"   
+    } } ##SNPs without CA will have NO. Select corresponding CA_comp count to replace the zeros in the CA count  
+
+A_require_comp <- A_with_ca %>% 
+  filter(CA == "NO") 
+SNPs_A <- A_require_comp$SNP #SNPs required 
+
+###################################################################################   
+#Hispanics 
+##Identify rows in CA counting that are all zeros 
+Hisp_with_ca <- data.frame(SNP = Hisp_SNP_use$SNP,                   
+                         CA = rep("YES", length(Hisp_SNP_use$SNP))) #YES represents CA there  
+for (i in 1:nrow(Hisp_SNP_dTable_ca)) {   
+  if(all(Hisp_SNP_dTable_ca[i, 2:1492]==0)) {     
+    Hisp_with_ca$CA[i] <- "NO"   
+    } } ##SNPs without CA will have NO. Select corresponding CA_comp count to replace the zeros in the CA count  
+
+Hisp_require_comp <- Hisp_with_ca %>% 
+  filter(CA == "NO") 
+SNPs_Hisp <- Hisp_require_comp$SNP #SNPs required 
+```
+
+### 3. Construct a Whole Table for Risk Allele Counting
+
+```{r}
+#AA 
+AA_SNP_dTable <- AA_SNP_dTable_ca 
+AA_SNP_dTable[AA_SNP_dTable$SNP %in% SNPs_AA,] <- AA_SNP_dTable_comp[AA_SNP_dTable_comp$SNP %in% SNPs_AA,]  
+
+#A 
+A_SNP_dTable <- A_SNP_dTable_ca 
+A_SNP_dTable[A_SNP_dTable$SNP %in% SNPs_A,] <- A_SNP_dTable_comp[A_SNP_dTable_comp$SNP %in% SNPs_A,] 
+
+#Hisp 
+Hisp_SNP_dTable <- Hisp_SNP_dTable_ca 
+Hisp_SNP_dTable[Hisp_SNP_dTable$SNP %in% SNPs_Hisp,] <- Hisp_SNP_dTable_comp[Hisp_SNP_dTable_comp$SNP %in% SNPs_Hisp,] 
+```
+
+### 4. Calculate Unweighted PRS
+
+Include all Races, both pre and post medication
+
+```{r}
+#Triglycerides 
+AA_uwPRS <- data.frame(   
+  ID = AA_SNP_merged$iid,   
+  PRSuw = colSums(AA_SNP_dTable[,2:11160]))  
+
+A_uwPRS <- data.frame(   
+  ID = A_SNP_merged$iid,   
+  PRSuw = colSums(A_SNP_dTable[,2:1055]))
+
+Hisp_uwPRS <- data.frame(   
+  ID = Hisp_SNP_merged$iid,   
+  PRSuw = colSums(Hisp_SNP_dTable[,2:1492]))
+```
+
+```{r}
+MDD_uwPRS <- rbind(AA_uwPRS, A_uwPRS, Hisp_uwPRS)
+```
+
+### 5. Visualizations of Unweighted PRS
+
+```{r}
+#Triglycerides 
+hist(TG_uwPRS$PRSuw, breaks = 15, col = "gray", xlab = "Unweighted PRS (TG)",      
+     main = "Histogram of Unweighted PRS (TG)")  
+
+#Total Cholesterol 
+hist(TC_uwPRS$PRSuw, breaks = 15, col = "gray", xlab = "Unweighted PRS (TC)",      
+     main = "Histogram of Unweighted PRS (TC)")  
+
+#LDL-Cholesterol 
+hist(LDL_uwPRS$PRSuw, breaks = 15, col = "gray", xlab = "Unweighted PRS (LDL)",      
+     main = "Histogram of Unweighted PRS (LDL)")  
+
+#HDL-Cholesterol 
+hist(HDL_uwPRS$PRSuw, breaks = 15, col = "gray", xlab = "Unweighted PRS (HDL)",      
+     main = "Histogram of Unweighted PRS (HDL)")
+```
+
+## Weighted PRS
+
+### 1. Multiply the respective betas
+
+```{r}
+#Triglycerides 
+TG_SNP_wbeta_dTable <- TG_SNP_dTable[, (2:10688) := lapply(.SD, function(x)    x *abs(TG_SNP_dTable[['BETA']])), .SDcols = 2:10688] TG_wPRS <- data.frame(   ID = TG_SNP_merged$iid,   PRSw = colSums(TG_SNP_wbeta_dTable[,2:10688]))  
+
+#Total Cholesterol 
+TC_SNP_wbeta_dTable <- TC_SNP_dTable[, (2:10956) := lapply(.SD, function(x)    x *abs(TC_SNP_dTable[['BETA']])), .SDcols = 2:10956] TC_wPRS <- data.frame(   ID = TC_SNP_merged$iid,   PRSw = colSums(TC_SNP_wbeta_dTable[,2:10956])) 
+
+#LDL-Cholesterol 
+LDL_SNP_wbeta_dTable <- LDL_SNP_dTable[, (2:11000) := lapply(.SD, function(x)    x *abs(LDL_SNP_dTable[['BETA']])), .SDcols = 2:11000] LDL_wPRS <- data.frame(   ID = LDL_SNP_merged$iid,   PRSw = colSums(LDL_SNP_wbeta_dTable[,2:11000]))  
+
+#HDL-Cholesterol 
+HDL_SNP_wbeta_dTable <- HDL_SNP_dTable[, (2:11021) := lapply(.SD, function(x)    x *abs(HDL_SNP_dTable[['BETA']])), .SDcols = 2:11021] HDL_wPRS <- data.frame(   ID = HDL_SNP_merged$iid,   PRSw = colSums(HDL_SNP_wbeta_dTable[,2:11021]))
+```
+
+
+`{r} #Triglycerides TG_SNP_wbeta_dTable <- TG_SNP_dTable[, (2:10688) := lapply(.SD, function(x)    x *abs(TG_SNP_dTable[['BETA']])), .SDcols = 2:10688] TG_wPRS <- data.frame(   ID = TG_SNP_merged$iid,   PRSw = colSums(TG_SNP_wbeta_dTable[,2:10688]))  #Total Cholesterol TC_SNP_wbeta_dTable <- TC_SNP_dTable[, (2:10956) := lapply(.SD, function(x)    x *abs(TC_SNP_dTable[['BETA']])), .SDcols = 2:10956] TC_wPRS <- data.frame(   ID = TC_SNP_merged$iid,   PRSw = colSums(TC_SNP_wbeta_dTable[,2:10956]))  #LDL-Cholesterol LDL_SNP_wbeta_dTable <- LDL_SNP_dTable[, (2:11000) := lapply(.SD, function(x)    x *abs(LDL_SNP_dTable[['BETA']])), .SDcols = 2:11000] LDL_wPRS <- data.frame(   ID = LDL_SNP_merged$iid,   PRSw = colSums(LDL_SNP_wbeta_dTable[,2:11000]))  #HDL-Cholesterol HDL_SNP_wbeta_dTable <- HDL_SNP_dTable[, (2:11021) := lapply(.SD, function(x)    x *abs(HDL_SNP_dTable[['BETA']])), .SDcols = 2:11021] HDL_wPRS <- data.frame(   ID = HDL_SNP_merged$iid,   PRSw = colSums(HDL_SNP_wbeta_dTable[,2:11021]))}`
+
+### 2. Visualizations of weighted PRS
+
+`{r} #Triglycerides hist(TG_wPRS$PRSw, breaks=15, col="gray", xlab="Weighted PRS (TG)",       main="Histogram of Weighted PRS (TG)")  #Total Cholesterol hist(TC_wPRS$PRSw, breaks=15, col="gray", xlab="Weighted PRS (TC)",       main="Histogram of Weighted PRS (TC)")  #LDL-Cholesterol hist(LDL_wPRS$PRSw, breaks=15, col="gray", xlab="Weighted PRS (LDL)",       main="Histogram of Weighted PRS (LDL)")  #HDL-Cholesterol hist(HDL_wPRS$PRSw, breaks=15, col="gray", xlab="Weighted PRS (HDL)",       main="Histogram of Weighted PRS (HDL)")}`
+
+## Merge Weighted and Unweighted Tables
+
+`{r} #Triglycerides TG_merged <- merge(TG_uwPRS, TG_wPRS, by = "ID") colnames(TG_merged)[1] <- "RUID"  #Total Cholesterol TC_merged <- merge(TC_uwPRS, TC_wPRS, by = "ID") colnames(TC_merged)[1] <- "RUID"   #LDL-Cholesterol LDL_merged <- merge(LDL_uwPRS, LDL_wPRS, by = "ID") colnames(LDL_merged)[1] <- "RUID"}`
+
+# ICD9 Codes - Create case/control definitions
+
+## Import BioVu Data - patient visits
+
+```{r}
+ICD9 <- readr::read_delim("/Users/carly/Desktop/Metabochip Project/formatted_All_ICD9_Group_Version1_Biovu_02142013_03022023/formatted_All_ICD9_Group_Version1_Biovu_02142013_03022023.txt",                            delim = "\t")
+```
+
+```{r}
+ICD9_IDs <- ICD9[c("RUID")]  
+ICD9_IDs_race <- ICD9[c("RUID", "new_race")]
+```
+
+Import ECG data to obtain birthdays (most complete dataset for birthdays)
+
+```{r}
+birthdays <- readr::read_delim("/Users/carly/Desktop/Metabochip Project/ECG_Group_Version2_Biovu_02262013.txt", delim = "\t")   
+birthdays_ID_dob <- birthdays[c("RUID", "dob")]  
+sum(is.na(birthdays$dob))
+```
+
+Merge ICD9 table with birthdays
+
+```{r}
+merged_dob_2 <- merge(x = ICD9_IDs, y = birthdays_ID_dob, by = 'RUID', all.x = TRUE)   
+sum(is.na(merged_dob_2$dob)) 
+```
+
+```{r}
+ICD9_dobs <- merge(x = ICD9, y = merged_dob_2, by = 'RUID', all.x = TRUE)
+```
+
+## Create table in a new format to calculate age easier
+
+```{r}
+ICD9_dobs_dates <- ICD9_dobs %>%      
+  select("RUID", "dob", "new_race", "gender", "genotyped", contains("date"))  
+
+ICD9_dobs_codes <- ICD9_dobs %>%      
+  select("RUID", "dob", "new_race", "gender", "genotyped", contains("codes"))  
+
+ICD9_dobs_new_format <- merge(ICD9_dobs_codes, ICD9_dobs_dates, by = "RUID")   
+
+#write.table(ICD9_dobs_new_format, file = "/Users/carly/Desktop/Metabochip Project
+#/ICD9_dobs_new_format.txt", sep = "\t", row.names = FALSE, col.names = TRUE)
+```
+
+Take table and do the following in Excel:
+
+1.  Countif record has the code 331.0 and repeat for 290, 290.1, and 290.2.
+2.  Sum these four columns to get the total count for these codes
+3.  Case if record has 331.0 and case if record as nonzero value in sum column
+4.  For cases, take the minimum date (date of first diagnosis). For controls, take the last visit date (maximum).
+5.  Calculate age (age first diagnosed for cases, age last visit for controls)
+6.  Filter controls to only include those \>=65.
+7.  Create new spreadsheet with just the information we want to condense data
+8.  Input the new sheets below for analysis
+
+```{r}
+cases_331 <- read_excel('/Users/carly/Desktop/Metabochip Project/CaseControl_FinalAnalysis.xlsx', sheet = "cases_331")    
+
+cases_all <- read_excel('/Users/carly/Desktop/Metabochip Project/CaseControl_FinalAnalysis.xlsx', sheet = "cases_all")    
+
+controls_331 <- read_excel('/Users/carly/Desktop/Metabochip Project/CaseControl_FinalAnalysis.xlsx', sheet = "controls_331")    
+
+controls_all <- read_excel('/Users/carly/Desktop/Metabochip Project/CaseControl_FinalAnalysis.xlsx', sheet = "controls_all")
+```
+
+Distributions of Variables for Table 1
+
+`{r} mean(cases_331$age)  sd(cases_331$age)   table(cases_331$gender.x)   table(cases_331$new_race.x)}`
+
+`{r} mean(cases_all$age)  sd(cases_all$age)   table(cases_all$gender.x)   table(cases_all$new_race.x)}`
+
+`{r} mean(controls_331$age_last_visit)  sd(controls_331$age_last_visit)   table(controls_331$gender.x)   table(controls_331$new_race.x)}`
+
+`{r} mean(controls_all$age_last_visit)  sd(controls_all$age_last_visit)   table(controls_all$gender.x)   table(controls_all$new_race.x)}`
+
+# Create table that merge ICD9 and Risk Scores
+
+Change all column names so they match to be able to bind them together.
+
+```{r}
+colnames(cases_331) <- c("RUID", "race", "sex", "genotyped", "count_331",   "count_290", "count_290.1", "count_290.2", "sum",                          "casecontrol", "dob", "min_if_331", "min_if_290",                          "min_if_290.1", "min_if_290.2", "min_date", "age")    
+
+colnames(controls_331) <- c("RUID", "race", "sex", "genotyped", "count_331",                          "count_290", "count_290.1", "count_290.2", "sum",                          "casecontrol", "dob", "min_if_331", "min_if_290",                          "min_if_290.1", "min_if_290.2", "min_date", "age")    
+
+colnames(cases_all) <- c("RUID", "race", "sex", "genotyped", "count_331",                          "count_290", "count_290.1", "count_290.2", "sum",                          "casecontrol", "dob", "min_if_331", "min_if_290",                          "min_if_290.1", "min_if_290.2", "min_date", "age")    
+
+colnames(controls_all) <- c("RUID", "race", "sex", "genotyped", "count_331",                          "count_290", "count_290.1", "count_290.2", "sum",                          "casecontrol", "dob", "min_if_331", "min_if_290",                          "min_if_290.1", "min_if_290.2", "min_date", "age")
+```
+
+```{r}
+casecontrol_331 <- rbind(cases_331, controls_331)   
+casecontrol_all <- rbind(cases_all, controls_all)
+```
+
+`{r} # come back to this when all lipids are in metabochip_allRaces <- rbind(metabochip_risk_AA, metabochip_risk_asian,                              metabochip_risk_hisp)}`
+
+```{r}
+#is this needed? 
+colnames(MDD_uwPRS)[1] <- "RUID"  
+```
+
+Create new Case/Control tables with Risk Values attached
+
+```{r}
+casecontrol_risk_331 <- merge(x = casecontrol_331, y = MDD_uwPRS,                              by = "RUID", all.x = TRUE)    
+
+casecontrol_risk_all <- merge(x = casecontrol_all, y = MDD_uwPRS,                              by = "RUID", all.x = TRUE) 
+```
+
+```{r}
+miss_var_summary(casecontrol_risk_331)
+```
+
+```{r}
+miss_var_summary(casecontrol_risk_all)
+```
+
+## Risk Score Distributions for Cases/Controls
+
+```{r}
+cases_with_risk_331 <- casecontrol_risk_331 %>%      
+  filter(casecontrol=="case")    
+cases_with_risk_all <- casecontrol_risk_all %>%      
+  filter(casecontrol=="case")    
+controls_with_risk_331 <- casecontrol_risk_331 %>%      
+  filter(casecontrol=="control")    
+controls_with_risk_all <- casecontrol_risk_all %>%      
+  filter(casecontrol=="control")
+```
+
+```{r}
+#cases 331.0 - unweighted print("Cases 331.0 - Not Weighted")  
+mean(cases_with_risk_331$PRSuw, na.rm = TRUE)  
+sd(cases_with_risk_331$PRSuw, na.rm = TRUE)  
+range(cases_with_risk_331$PRSuw, na.rm = TRUE)   
+
+#cases 331.0 - weighted print("Cases 331.0 - Weighted")  mean(cases_with_risk_331$weighted_risk, na.rm = TRUE)  sd(cases_with_risk_331$weighted_risk, na.rm = TRUE)  range(cases_with_risk_331$weighted_risk, na.rm = TRUE)    
+
+#controls 331.0 - unweighted print("Controls 331.0 - Not Weighted")  
+mean(controls_with_risk_331$PRSuw, na.rm = TRUE)  
+sd(controls_with_risk_331$PRSuw, na.rm = TRUE)  
+range(controls_with_risk_331$PRSuw, na.rm = TRUE)    
+
+#controls 331.0 - weighted print("Controls 331.0 - Weighted")  mean(controls_with_risk_331$weighted_risk, na.rm = TRUE)  sd(controls_with_risk_331$weighted_risk, na.rm = TRUE)  range(controls_with_risk_331$weighted_risk, na.rm = TRUE)    
+
+#cases all - unweighted  print("Cases All - Not Weighted")  
+mean(cases_with_risk_all$PRSuw, na.rm = TRUE)  
+sd(cases_with_risk_all$PRSuw, na.rm = TRUE)  
+range(cases_with_risk_all$PRSuw, na.rm = TRUE)    
+
+#cases all - weighted print("Cases All - Weighted")  mean(cases_with_risk_all$weighted_risk, na.rm = TRUE)  sd(cases_with_risk_all$weighted_risk, na.rm = TRUE)  range(cases_with_risk_all$weighted_risk, na.rm = TRUE)    
+
+#controls all - unweighted print("Controls All - Not Weighted")  
+mean(controls_with_risk_all$PRSuw, na.rm = TRUE)  
+sd(controls_with_risk_all$PRSuw, na.rm = TRUE)  
+range(controls_with_risk_all$PRSuw, na.rm = TRUE)    
+
+#controls all - weighted print("Controls All - Weighted")  mean(controls_with_risk_all$weighted_risk, na.rm = TRUE)  sd(controls_with_risk_all$weighted_risk, na.rm = TRUE)  range(controls_with_risk_all$weighted_risk, na.rm = TRUE)
+```
+
+# Table 1 Creations
+
+`{r} table_TG <- CreateTableOne(data = casecontrol_risk_331)  print(table_TG)}`
+
+# Merge Case/Control File with PCs
+
+```{r}
+casecontrol_risk_331 <- merge(casecontrol_risk_331, PC_file, by = "RUID", all.x=TRUE)  
+casecontrol_risk_all <- merge(casecontrol_risk_all, PC_file, by = "RUID", all.x=TRUE)
+```
+
+# Tests of Association
+
+## Logistic Regression - 331.0
+
+First, mutate the case/control status to be 0's and 1's for input in the logistic regression (1 = case, 0 = control)
+
+```{r}
+casecontrol_risk_331 <- casecontrol_risk_331 %>%   
+  mutate(casecontrol = ifelse(casecontrol == "case", 1, 0))
+```
+
+### Weighted
+
+`{r} logistic_model_331_weighted <- glm(casecontrol ~ PRSw + age + sex + pc1 + pc2,                           family = "binomial", data = casecontrol_risk_331,                            subset = race=="B")}`
+
+Print Summary Statistics to Examine Model
+
+`{r} summary(logistic_model_331_weighted)}`
+
+`{r} summary(logistic_model_331_weighted)$coefficients}`
+
+`{r} exp(coef(logistic_model_331_weighted))}`
+
+`{r} CI_lower <- exp(coefficients(logistic_model_331_weighted)[2] -                       1.96*summary(logistic_model_331_weighted)$coefficients[2,2])   CI_upper <- exp(coefficients(logistic_model_331_weighted)[2] +                       1.96*summary(logistic_model_331_weighted)$coefficients[2,2])    CI_lower  CI_upper}`
+
+`{r} confint(logistic_model_331_weighted)}`
+
+### Not Weighted
+
+```{r}
+logistic_model_331_unweighted <- glm(casecontrol ~ PRSuw + age + sex + pc1 + pc2,                           family = "binomial", data = casecontrol_risk_331,                            subset = race=="B")
+```
+
+Print Summary Statistics to Examine Model
+
+```{r}
+summary(logistic_model_331_unweighted)
+```
+
+```{r}
+summary(logistic_model_331_unweighted)$coefficients
+```
+
+```{r}
+exp(coef(logistic_model_331_unweighted))
+```
+
+```{r}
+CI_lower <- exp(coefficients(logistic_model_331_unweighted)[2] -                       1.96*summary(logistic_model_331_unweighted)$coefficients[2,2])     
+
+CI_upper <- exp(coefficients(logistic_model_331_unweighted)[2] +                       1.96*summary(logistic_model_331_unweighted)$coefficients[2,2])      
+
+CI_lower  
+CI_upper
+```
+
+```{r}
+confint(logistic_model_331_unweighted)
+```
+
+## Logistic Regression - 331.0, 290.0, 290.1, or 290.2
+
+First, mutate the case/control status to be 0's and 1's for input in the logistic regression (1 = case, 0 = control)
+
+```{r}
+casecontrol_risk_all <- casecontrol_risk_all %>%      
+  mutate(casecontrol = ifelse(casecontrol == "case", 1, 0))
+```
+
+### Weighted
+
+`{r} logistic_model_all_weighted <- glm(casecontrol ~ PRSw + age + sex + pc1 + pc2,                           family = "binomial", data = casecontrol_risk_all,                            subset = race=="B")}`
+
+Print Summary Statistics to Examine Model
+
+`{r} summary(logistic_model_all_weighted)}`
+
+`{r} summary(logistic_model_all_weighted)$coefficients}`
+
+`{r} exp(coef(logistic_model_all_weighted))}`
+
+`{r} CI_lower <- exp(coefficients(logistic_model_all_weighted)[2] -                       1.96*summary(logistic_model_all_weighted)$coefficients[2,2])     CI_upper <- exp(coefficients(logistic_model_all_weighted)[2] +                       1.96*summary(logistic_model_all_weighted)$coefficients[2,2])      CI_lower   CI_upper}`
+
+`{r} confint(logistic_model_all_weighted)}`
+
+### Not Weighted
+
+```{r}
+logistic_model_all_unweighted <- glm(casecontrol ~ PRSuw + age + sex + pc1 + pc2,                           family = "binomial", data = casecontrol_risk_all,                            subset = race=="B")
+```
+
+Print Summary Statistics to Examine Model
+
+```{r}
+summary(logistic_model_all_unweighted)
+```
+
+```{r}
+summary(logistic_model_all_unweighted)$coefficients
+```
+
+```{r}
+exp(coef(logistic_model_all_unweighted))
+```
+
+```{r}
+CI_lower <- exp(coefficients(logistic_model_all_unweighted)[2] -                       1.96*summary(logistic_model_all_unweighted)$coefficients[2,2])       
+
+CI_upper <- exp(coefficients(logistic_model_all_unweighted)[2] +                       1.96*summary(logistic_model_all_unweighted)$coefficients[2,2])        
+
+CI_lower   
+CI_upper
+```
+
+```{r}
+confint(logistic_model_all_unweighted)
+```
+
+```{r}
+casecontrol_risk_331 <- casecontrol_risk_331 %>%   
+  mutate(casecontrol = ifelse(casecontrol == 1, "case", "control"))
+
+casecontrol_risk_all <- casecontrol_risk_all %>%   
+  mutate(casecontrol = ifelse(casecontrol == 1, "case", "control"))
+```
+
+```{r}
+mdd_p_all <- ggplot(casecontrol_risk_331, aes(x = PRSuw, group = casecontrol, fill = casecontrol)) +
+  scale_color_manual(values = c("blue", "red"), labels = c("Case", "Control")) +
+  labs(title = "MDD", x = "Unweighted GRS", y = "Density") +
+  guides(fill = guide_legend(title = "AD Status")) +
+  geom_density(alpha = 0.5) +
+  theme_bw()
+```
+
+```{r}
+mdd_p_331 <- ggplot(casecontrol_risk_all, aes(x = PRSuw, group = casecontrol, fill = casecontrol)) +
+  scale_color_manual(values = c("blue", "red"), labels = c("Case", "Control")) +
+  labs(title = "MDD", x = "Unweighted GRS", y = "Density") +
+  guides(fill = guide_legend(title = "AD Status")) +
+  geom_density(alpha = 0.5) +
+  theme_bw()
+```
+
+```{r}
+mdd_p_331 + mdd_p_all
+```
+
+```{r}
+casecontrol_331_results <- casecontrol_risk_331 %>%
+  filter(race == "B") %>%
+  filter(complete.cases(PRSuw))
+```
+
+```{r}
+df_casecontrol_331_cases <- casecontrol_331_results %>%
+  filter(casecontrol == "case")
+
+df_casecontrol_331_controls <- casecontrol_331_results %>%
+  filter(casecontrol == "control")
+```
+
+```{r}
+mean(df_casecontrol_331_cases$PRSuw)
+sd(df_casecontrol_331_cases$PRSuw)
+range(df_casecontrol_331_cases$PRSuw)
+
+mean(df_casecontrol_331_controls$PRSuw)
+sd(df_casecontrol_331_controls$PRSuw)
+range(df_casecontrol_331_controls$PRSuw)
+```
+
+```{r}
+casecontrol_all_results <- casecontrol_risk_all %>%
+  filter(race == "B") %>%
+  filter(complete.cases(PRSuw))
+```
+
+```{r}
+df_casecontrol_all_cases <- casecontrol_all_results %>%
+  filter(casecontrol == "case")
+
+df_casecontrol_all_controls <- casecontrol_all_results %>%
+  filter(casecontrol == "control")
+```
+
+```{r}
+mean(df_casecontrol_all_cases$PRSuw)
+sd(df_casecontrol_all_cases$PRSuw)
+range(df_casecontrol_all_cases$PRSuw)
+
+mean(df_casecontrol_all_controls$PRSuw)
+sd(df_casecontrol_all_controls$PRSuw)
+range(df_casecontrol_all_controls$PRSuw)
+```
